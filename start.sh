@@ -10,24 +10,19 @@ PORT="${CONTESTPUSHER_PORT:-8090}"
 # ── Kleuren ──
 RED='\033[0;31m'; GREEN='\033[0;32m'; YELLOW='\033[1;33m'; NC='\033[0m'
 
-echo ""
-echo -e "  ${GREEN}ContestPusher${NC} — ham radio contest log uploader"
-echo "  ─────────────────────────────────────────────"
-echo ""
-
 # ── Python check ──
 if ! command -v python3 &>/dev/null; then
-  echo -e "  ${RED}✗ Python 3 niet gevonden.${NC}"
-  echo "    Installeer via: https://www.python.org/downloads/"
+  echo -e "${RED}✗ Python 3 niet gevonden.${NC}"
+  echo "  Installeer via: https://www.python.org/downloads/"
   exit 1
 fi
 
 PY_VER=$(python3 -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
-echo -e "  ${GREEN}✓${NC} Python $PY_VER gevonden"
+echo -e "${GREEN}✓${NC} Python $PY_VER gevonden"
 
 # ── Virtualenv aanmaken als die er niet is ──
 if [ ! -d ".venv" ]; then
-  echo -e "  ${YELLOW}→${NC} Virtuele omgeving aanmaken…"
+  echo -e "${YELLOW}→${NC} Virtuele omgeving aanmaken…"
   python3 -m venv .venv
 fi
 
@@ -36,15 +31,11 @@ fi
 source .venv/bin/activate
 
 # ── Dependencies installeren ──
-echo -e "  ${YELLOW}→${NC} Dependencies controleren / installeren…"
+echo -e "${YELLOW}→${NC} Dependencies controleren / installeren…"
 pip install --quiet --upgrade pip
 pip install --quiet -r requirements.txt
 
-echo -e "  ${GREEN}✓${NC} Dependencies gereed"
-echo ""
-echo -e "  🌐 Open in je browser: ${GREEN}http://localhost:${PORT}${NC}"
-echo "     Druk op Ctrl+C om te stoppen."
-echo ""
+echo -e "${GREEN}✓${NC} Dependencies gereed"
 
-# ── Starten ──
-CONTESTPUSHER_PORT="$PORT" python3 main.py
+# ── Starten via GUI launcher ──
+CONTESTPUSHER_PORT="$PORT" python3 tray.py
