@@ -90,16 +90,16 @@ class App(tk.Tk):
         header = tk.Frame(self, bg=BG2, pady=18)
         header.pack(fill="x")
 
-        title_font = tkfont.Font(family="Segoe UI", size=18, weight="bold")
+        title_font = tkfont.Font(family="Segoe UI", size=16, weight="bold")
         sub_font   = tkfont.Font(family="Segoe UI", size=10)
 
         tk.Label(header, text="Contest", font=title_font,
-                 bg=BG2, fg=FG).pack(side="left", padx=(24,0))
+                 bg=BG2, fg=FG).pack(side="left", padx=(20, 0))
         tk.Label(header, text="Pusher", font=title_font,
-                 bg=BG2, fg=ACCENT).pack(side="left")
+                 bg=BG2, fg=ACCENT).pack(side="left", padx=(0, 12))
         self._ver_lbl = tk.Label(header, text="v0.1.0",
                                   font=sub_font, bg=BG2, fg=FG2)
-        self._ver_lbl.pack(side="right", padx=24)
+        self._ver_lbl.pack(side="right", padx=20)
 
         # ── Statusbalk ──
         status_frame = tk.Frame(self, bg=BG, pady=20)
@@ -146,9 +146,16 @@ class App(tk.Tk):
         )
         self._stop_btn.pack(fill="x")
 
-        # ── Breedte fixeren ──
-        self.geometry("320x220")
+        # ── Venster opmeten en centreren ──
         self.update_idletasks()
+        w = max(self.winfo_reqwidth(), 380)
+        h = self.winfo_reqheight()
+        sw = self.winfo_screenwidth()
+        sh = self.winfo_screenheight()
+        x = (sw - w) // 2
+        y = (sh - h) // 2
+        self.geometry(f"{w}x{h}+{x}+{y}")
+        self.minsize(380, h)
 
     # ── Acties ────────────────────────────────────────────────────────────
     def _auto_start(self):
