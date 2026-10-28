@@ -103,7 +103,12 @@ contestpusher/
 ├── start.sh             # Linux/macOS starter
 ├── start.bat            # Windows starter
 ├── templates/
-│   └── index.html       # Single-page frontend
+│   └── index.html       # Single-page frontend (NL/EN/DE/ES)
+├── docs/
+│   ├── handleiding-nl.md  # Nederlandstalige handleiding
+│   ├── manual-en.md       # English user manual
+│   ├── handbuch-de.md     # Deutsches Benutzerhandbuch
+│   └── manual-es.md       # Manual en español
 └── services/
     ├── adif_parser.py   # ADIF parser
     ├── lotw.py          # LoTW (via TQSL)
@@ -117,17 +122,16 @@ contestpusher/
 
 ## Open source & donaties
 
-ContestPusher is MIT licentie. Broncode: [github.com/joeri-noppus/contestpusher](https://github.com/joeri-noppus/contestpusher)
+ContestPusher is MIT licentie. Broncode: [github.com/pe5jw/ContestPusher](https://github.com/pe5jw/ContestPusher)
 
 Vind je het nuttig? Help de ontwikkeling met een kleine donatie — elke koffie telt! ☕
 
 [![Ko-fi](https://img.shields.io/badge/Ko--fi-Doneer-FF5E5B?logo=ko-fi)](https://ko-fi.com/contestpusher)
-[![GitHub Sponsors](https://img.shields.io/badge/GitHub_Sponsors-Sponsor-EA4AAA?logo=github)](https://github.com/sponsors/joeri-noppus)
 
 ---
 
 ## Licentie
 
-MIT © Joeri — joeri@noppus.nl
+MIT © Joeri
 
-73 de PD/PA! 🎙️
+73 de PE5JW 🎙️
