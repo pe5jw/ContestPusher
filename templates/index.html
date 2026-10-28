@@ -1,0 +1,916 @@
+<title>ContestPusher</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap">
+
+<style>
+/* ── Design tokens ─────────────────────────────────────────────────────────── */
+/* Layout: sidebar nav + main content, cards for service status */
+:root {
+  --bg:        #0f1117;
+  --bg2:       #181c27;
+  --bg3:       #1e2333;
+  --border:    #2a3045;
+  --fg:        #e2e8f0;
+  --fg2:       #94a3b8;
+  --fg3:       #64748b;
+  --accent:    #3b82f6;
+  --accent2:   #1d4ed8;
+  --ok:        #22c55e;
+  --err:       #ef4444;
+  --warn:      #f59e0b;
+  --radius:    8px;
+  --font:      'Inter', system-ui, sans-serif;
+  --mono:      'JetBrains Mono', monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme="dark"]) {
+    --bg:      #f1f5f9;
+    --bg2:     #ffffff;
+    --bg3:     #f8fafc;
+    --border:  #e2e8f0;
+    --fg:      #0f172a;
+    --fg2:     #475569;
+    --fg3:     #94a3b8;
+    color-scheme: light;
+  }
+}
+:root[data-theme="light"] {
+  --bg:      #f1f5f9;
+  --bg2:     #ffffff;
+  --bg3:     #f8fafc;
+  --border:  #e2e8f0;
+  --fg:      #0f172a;
+  --fg2:     #475569;
+  --fg3:     #94a3b8;
+  color-scheme: light;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0 }
+
+body {
+  font-family: var(--font);
+  background: var(--bg);
+  color: var(--fg);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  padding-left: max(0px, env(safe-area-inset-left, 0px));
+  padding-right: max(0px, env(safe-area-inset-right, 0px));
+}
+
+/* ── Layout ────────────────────────────────────────────────────────────────── */
+.app { display: flex; flex: 1; min-height: 100vh }
+
+/* Sidebar */
+.sidebar {
+  width: 220px;
+  background: var(--bg2);
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow-y: auto;
+}
+.sidebar-logo {
+  padding: 24px 20px 20px;
+  border-bottom: 1px solid var(--border);
+}
+.sidebar-logo .logo-mark {
+  font-size: 22px;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  color: var(--fg);
+}
+.sidebar-logo .logo-mark span { color: var(--accent) }
+.sidebar-logo .version {
+  font-size: 11px;
+  color: var(--fg3);
+  font-family: var(--mono);
+  margin-top: 2px;
+}
+.sidebar-nav { padding: 12px 10px; flex: 1 }
+.nav-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--fg2);
+  transition: background .15s, color .15s;
+  border: none;
+  background: none;
+  width: 100%;
+  text-align: left;
+  user-select: none;
+}
+.nav-item:hover { background: var(--bg3); color: var(--fg) }
+.nav-item.active { background: color-mix(in srgb, var(--accent) 15%, transparent); color: var(--accent) }
+.nav-item .nav-icon { font-size: 16px; width: 20px; text-align: center }
+
+.sidebar-footer {
+  padding: 16px 20px;
+  border-top: 1px solid var(--border);
+  font-size: 12px;
+  color: var(--fg3);
+}
+.sidebar-footer a { color: var(--accent); text-decoration: none }
+.sidebar-footer a:hover { text-decoration: underline }
+
+/* Main */
+.main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+}
+.topbar {
+  padding: 20px 32px;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg2);
+  gap: 16px;
+}
+.topbar h1 { font-size: 18px; font-weight: 600 }
+.topbar .subtitle { font-size: 13px; color: var(--fg2); margin-top: 2px }
+
+.theme-toggle {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  color: var(--fg2);
+  padding: 6px 10px;
+  border-radius: var(--radius);
+  cursor: pointer;
+  font-size: 15px;
+  transition: background .15s;
+}
+.theme-toggle:hover { background: var(--border) }
+
+.content {
+  padding: 32px;
+  flex: 1;
+  max-width: 900px;
+}
+
+/* ── Views ─────────────────────────────────────────────────────────────────── */
+.view { display: none }
+.view.active { display: block }
+
+/* ── Cards ─────────────────────────────────────────────────────────────────── */
+.card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-bottom: 20px;
+}
+.card-title {
+  font-size: 15px;
+  font-weight: 600;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* ── Upload zone ───────────────────────────────────────────────────────────── */
+.drop-zone {
+  border: 2px dashed var(--border);
+  border-radius: var(--radius);
+  padding: 48px 24px;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color .2s, background .2s;
+  position: relative;
+}
+.drop-zone:hover, .drop-zone.drag-over {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 5%, transparent);
+}
+.drop-zone input[type="file"] {
+  position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%;
+}
+.drop-icon { font-size: 40px; margin-bottom: 12px }
+.drop-text { font-size: 15px; font-weight: 500; margin-bottom: 6px }
+.drop-sub  { font-size: 13px; color: var(--fg2) }
+.drop-file-name {
+  display: none;
+  font-family: var(--mono);
+  font-size: 13px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 8px 14px;
+  margin-top: 12px;
+  color: var(--ok);
+}
+
+/* ── Button ────────────────────────────────────────────────────────────────── */
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 20px;
+  border-radius: var(--radius);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: background .15s, opacity .15s;
+  text-decoration: none;
+  color: #fff;
+}
+.btn-primary { background: var(--accent) }
+.btn-primary:hover { background: var(--accent2) }
+.btn-primary:disabled { opacity: .5; cursor: not-allowed }
+.btn-lg { padding: 12px 28px; font-size: 15px }
+.upload-btn { margin-top: 20px; width: 100%; justify-content: center }
+
+/* ── Service status cards ──────────────────────────────────────────────────── */
+.results-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+  margin-top: 24px;
+}
+.result-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+}
+.result-card.ok    { border-left: 3px solid var(--ok) }
+.result-card.err   { border-left: 3px solid var(--err) }
+.result-card.pending { border-left: 3px solid var(--warn) }
+.result-status-icon { font-size: 20px; flex-shrink: 0; margin-top: 2px }
+.result-service { font-size: 13px; font-weight: 600; margin-bottom: 3px }
+.result-msg { font-size: 12px; color: var(--fg2); line-height: 1.5 }
+
+/* Spinner */
+.spinner {
+  display: inline-block;
+  width: 18px; height: 18px;
+  border: 2px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes spin { to { transform: rotate(360deg) } }
+
+/* ── Config form ───────────────────────────────────────────────────────────── */
+.service-config-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin-bottom: 16px;
+  overflow: hidden;
+}
+.service-config-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  cursor: pointer;
+  user-select: none;
+  gap: 12px;
+}
+.service-config-header:hover { background: var(--bg3) }
+.service-header-left { display: flex; align-items: center; gap: 10px }
+.service-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0 }
+.service-config-name { font-size: 14px; font-weight: 600 }
+.service-config-status { font-size: 12px; color: var(--fg3) }
+
+/* Toggle switch */
+.toggle {
+  position: relative; width: 40px; height: 22px; flex-shrink: 0
+}
+.toggle input { opacity: 0; width: 0; height: 0 }
+.toggle-track {
+  position: absolute; inset: 0;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 11px;
+  transition: background .2s;
+  cursor: pointer;
+}
+.toggle input:checked + .toggle-track { background: var(--accent); border-color: var(--accent) }
+.toggle-thumb {
+  position: absolute;
+  top: 3px; left: 3px;
+  width: 14px; height: 14px;
+  background: var(--fg3);
+  border-radius: 50%;
+  transition: transform .2s, background .2s;
+  pointer-events: none;
+}
+.toggle input:checked ~ .toggle-thumb { transform: translateX(18px); background: #fff }
+
+.service-config-body { padding: 0 20px 20px; border-top: 1px solid var(--border) }
+.service-config-body.hidden { display: none }
+
+.form-group { margin-top: 14px }
+.form-label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--fg2);
+  margin-bottom: 5px;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+.form-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--fg);
+  font-size: 14px;
+  font-family: var(--font);
+  transition: border-color .15s;
+}
+.form-input:focus { outline: none; border-color: var(--accent) }
+.form-hint { font-size: 11px; color: var(--fg3); margin-top: 4px; line-height: 1.4 }
+.form-required { color: var(--err); margin-left: 2px }
+
+.save-btn { margin-top: 16px }
+
+/* ── History table ─────────────────────────────────────────────────────────── */
+.history-empty {
+  text-align: center;
+  padding: 48px;
+  color: var(--fg3);
+  font-size: 14px;
+}
+.history-item {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 20px;
+  margin-bottom: 12px;
+}
+.history-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 12px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+.history-filename {
+  font-family: var(--mono);
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--fg);
+}
+.history-meta { font-size: 12px; color: var(--fg3) }
+.history-badges { display: flex; gap: 6px; flex-wrap: wrap }
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.badge-ok  { background: color-mix(in srgb, var(--ok) 15%, transparent);  color: var(--ok) }
+.badge-err { background: color-mix(in srgb, var(--err) 15%, transparent); color: var(--err) }
+
+/* ── Toast ─────────────────────────────────────────────────────────────────── */
+.toast-container {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.toast {
+  padding: 12px 18px;
+  border-radius: var(--radius);
+  font-size: 13px;
+  font-weight: 500;
+  color: #fff;
+  animation: toast-in .2s ease;
+  max-width: 320px;
+}
+.toast-ok  { background: color-mix(in srgb, var(--ok) 80%, #000) }
+.toast-err { background: color-mix(in srgb, var(--err) 80%, #000) }
+@keyframes toast-in { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: none } }
+
+/* ── Summary bar ───────────────────────────────────────────────────────────── */
+.summary-bar {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 14px 20px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+.summary-stat { display: flex; flex-direction: column; align-items: center; min-width: 60px }
+.summary-num  { font-size: 26px; font-weight: 700; font-variant-numeric: tabular-nums; line-height: 1 }
+.summary-lbl  { font-size: 11px; color: var(--fg3); margin-top: 2px; text-transform: uppercase; letter-spacing: .04em }
+.summary-div  { width: 1px; height: 36px; background: var(--border) }
+
+/* ── About ─────────────────────────────────────────────────────────────────── */
+.about-logo { font-size: 36px; font-weight: 800; letter-spacing: -1px; margin-bottom: 8px }
+.about-logo span { color: var(--accent) }
+.about-tagline { font-size: 15px; color: var(--fg2); margin-bottom: 24px }
+.about-section { margin-bottom: 24px }
+.about-section h3 { font-size: 14px; font-weight: 600; margin-bottom: 8px; color: var(--fg2); text-transform: uppercase; letter-spacing: .04em }
+.about-section p, .about-section ul { font-size: 14px; color: var(--fg); line-height: 1.7 }
+.about-section ul { padding-left: 18px }
+.donate-box {
+  background: color-mix(in srgb, var(--accent) 8%, transparent);
+  border: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin-top: 24px;
+  text-align: center;
+}
+.donate-box p { font-size: 14px; color: var(--fg2); margin-bottom: 12px }
+.donate-box .btn { margin: 0 auto }
+
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 700px) {
+  .sidebar { display: none }
+  .content { padding: 20px 16px }
+  .topbar { padding: 16px; flex-wrap: wrap }
+  .results-grid { grid-template-columns: 1fr }
+  .mobile-nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    padding: 10px 16px;
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    scrollbar-width: none;
+  }
+  .mobile-nav::-webkit-scrollbar { display: none }
+  .mobile-nav .nav-item { flex-shrink: 0; padding: 7px 14px }
+}
+@media (min-width: 701px) { .mobile-nav { display: none } }
+</style>
+
+<!-- Toast container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <nav class="sidebar">
+    <div class="sidebar-logo">
+      <div class="logo-mark">Contest<span>Pusher</span></div>
+      <div class="version" id="versionBadge">v0.1.0</div>
+    </div>
+    <div class="sidebar-nav">
+      <button class="nav-item active" data-view="upload" onclick="showView('upload', this)">
+        <span class="nav-icon">📤</span> Upload
+      </button>
+      <button class="nav-item" data-view="config" onclick="showView('config', this)">
+        <span class="nav-icon">⚙️</span> Services
+      </button>
+      <button class="nav-item" data-view="history" onclick="showView('history', this)">
+        <span class="nav-icon">📋</span> Geschiedenis
+      </button>
+      <button class="nav-item" data-view="about" onclick="showView('about', this)">
+        <span class="nav-icon">ℹ️</span> Over
+      </button>
+    </div>
+    <div class="sidebar-footer">
+      MIT licentie · Open Source<br>
+      <a href="https://github.com/joeri-noppus/contestpusher" target="_blank">GitHub</a>
+      · <a href="#" onclick="showView('about', null); return false">Doneren</a>
+    </div>
+  </nav>
+
+  <div class="main">
+    <!-- Topbar -->
+    <div class="topbar">
+      <div>
+        <div id="viewTitle" style="font-size:18px;font-weight:600">Log Uploaden</div>
+        <div class="subtitle" id="viewSubtitle">Selecteer een ADIF bestand en push naar alle services</div>
+      </div>
+      <button class="theme-toggle" onclick="toggleTheme()" title="Thema wisselen">🌓</button>
+    </div>
+
+    <!-- Mobile nav -->
+    <div class="mobile-nav">
+      <button class="nav-item active" data-view="upload" onclick="showView('upload', this)">📤 Upload</button>
+      <button class="nav-item" data-view="config" onclick="showView('config', this)">⚙️ Services</button>
+      <button class="nav-item" data-view="history" onclick="showView('history', this)">📋 Geschiedenis</button>
+      <button class="nav-item" data-view="about" onclick="showView('about', this)">ℹ️ Over</button>
+    </div>
+
+    <div class="content">
+
+      <!-- ── UPLOAD VIEW ── -->
+      <div class="view active" id="view-upload">
+        <div class="card">
+          <div class="card-title">📁 ADIF Bestand</div>
+          <div class="drop-zone" id="dropZone">
+            <input type="file" id="fileInput" accept=".adi,.adif" onchange="onFileSelected(this)">
+            <div class="drop-icon">📂</div>
+            <div class="drop-text">Sleep je ADIF bestand hierheen</div>
+            <div class="drop-sub">of klik om te bladeren — .adi en .adif ondersteund</div>
+            <div class="drop-file-name" id="dropFileName"></div>
+          </div>
+          <button class="btn btn-primary btn-lg upload-btn" id="uploadBtn" onclick="doUpload()" disabled>
+            <span>📤</span> Push naar alle services
+          </button>
+        </div>
+
+        <!-- Resultaten -->
+        <div id="uploadResults" style="display:none">
+          <div class="summary-bar" id="summaryBar"></div>
+          <div class="results-grid" id="resultsGrid"></div>
+        </div>
+      </div>
+
+      <!-- ── CONFIG VIEW ── -->
+      <div class="view" id="view-config">
+        <div id="configCards">
+          <div style="color:var(--fg3); text-align:center; padding:40px">Laden…</div>
+        </div>
+      </div>
+
+      <!-- ── HISTORY VIEW ── -->
+      <div class="view" id="view-history">
+        <div id="historyList">
+          <div style="color:var(--fg3); text-align:center; padding:40px">Laden…</div>
+        </div>
+      </div>
+
+      <!-- ── ABOUT VIEW ── -->
+      <div class="view" id="view-about">
+        <div class="card">
+          <div class="about-logo">Contest<span>Pusher</span></div>
+          <div class="about-tagline">Upload je contest log naar alle grote ham radio diensten in één klik.</div>
+
+          <div class="about-section">
+            <h3>Ondersteunde diensten</h3>
+            <ul>
+              <li>Logbook of the World (LoTW) — via TQSL</li>
+              <li>eQSL.cc — directe HTTP upload</li>
+              <li>QRZ Logbook — REST API (betaald abonnement vereist)</li>
+              <li>Club Log — ADIF upload API</li>
+              <li>HRDLog.net — REST API</li>
+            </ul>
+          </div>
+
+          <div class="about-section">
+            <h3>Gebruik</h3>
+            <p>Configureer je diensten onder "Services", upload daarna je ADIF bestand en ContestPusher stuurt het parallel naar alle ingeschakelde diensten.</p>
+          </div>
+
+          <div class="about-section">
+            <h3>Open Source</h3>
+            <p>ContestPusher is volledig open source (MIT licentie). De broncode staat op GitHub. Bijdragen zijn welkom!</p>
+          </div>
+
+          <div class="donate-box">
+            <p>ContestPusher is gratis en open source. Vind je het nuttig? Een kleine donatie helpt de ontwikkeling gaande te houden. 73!</p>
+            <a class="btn btn-primary" href="https://ko-fi.com/contestpusher" target="_blank">
+              ☕ Koop me een koffie
+            </a>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<script>
+// ── State ──────────────────────────────────────────────────────────────────
+let selectedFile = null;
+let serviceFields = {};
+let services = [];
+
+const VIEW_META = {
+  upload:  { title: 'Log Uploaden',    subtitle: 'Selecteer een ADIF bestand en push naar alle services' },
+  config:  { title: 'Services',        subtitle: 'Configureer je ham radio logboek diensten' },
+  history: { title: 'Geschiedenis',    subtitle: 'Eerdere uploads en resultaten' },
+  about:   { title: 'Over ContestPusher', subtitle: 'Versie & doneren' },
+};
+
+// ── Theme ──────────────────────────────────────────────────────────────────
+function initTheme() {
+  try {
+    const t = localStorage.getItem('cp-theme');
+    if (t) document.documentElement.setAttribute('data-theme', t);
+  } catch(e) {}
+}
+function toggleTheme() {
+  const cur = document.documentElement.getAttribute('data-theme');
+  const next = cur === 'light' ? 'dark' : 'light';
+  document.documentElement.setAttribute('data-theme', next);
+  try { localStorage.setItem('cp-theme', next) } catch(e) {}
+}
+initTheme();
+
+// ── Navigation ─────────────────────────────────────────────────────────────
+function showView(id, el) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  document.getElementById('view-' + id).classList.add('active');
+  if (el) el.classList.add('active');
+  // Sync both sidebars
+  document.querySelectorAll(`[data-view="${id}"]`).forEach(n => n.classList.add('active'));
+  const meta = VIEW_META[id] || {};
+  document.getElementById('viewTitle').textContent = meta.title || id;
+  document.getElementById('viewSubtitle').textContent = meta.subtitle || '';
+  if (id === 'config') loadConfig();
+  if (id === 'history') loadHistory();
+}
+
+// ── Toast ──────────────────────────────────────────────────────────────────
+function toast(msg, type = 'ok') {
+  const el = document.createElement('div');
+  el.className = `toast toast-${type}`;
+  el.textContent = msg;
+  document.getElementById('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 3500);
+}
+
+// ── File drop & select ─────────────────────────────────────────────────────
+const dropZone = document.getElementById('dropZone');
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('drag-over') });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('drag-over');
+  const f = e.dataTransfer.files[0];
+  if (f) setFile(f);
+});
+
+function onFileSelected(input) {
+  if (input.files[0]) setFile(input.files[0]);
+}
+
+function setFile(f) {
+  selectedFile = f;
+  const nameEl = document.getElementById('dropFileName');
+  nameEl.textContent = '📄 ' + f.name + ' (' + (f.size / 1024).toFixed(1) + ' KB)';
+  nameEl.style.display = 'block';
+  document.getElementById('uploadBtn').disabled = false;
+  document.getElementById('uploadResults').style.display = 'none';
+}
+
+// ── Upload ─────────────────────────────────────────────────────────────────
+async function doUpload() {
+  if (!selectedFile) return;
+
+  const btn = document.getElementById('uploadBtn');
+  const resultsDiv = document.getElementById('uploadResults');
+  const grid = document.getElementById('resultsGrid');
+  const summary = document.getElementById('summaryBar');
+
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner"></span> Bezig met uploaden…';
+  resultsDiv.style.display = 'none';
+
+  const fd = new FormData();
+  fd.append('file', selectedFile);
+
+  try {
+    const res = await fetch('/api/upload', { method: 'POST', body: fd });
+    const data = await res.json();
+
+    if (!res.ok || !data.ok) {
+      toast(data.message || 'Upload mislukt', 'err');
+      btn.disabled = false;
+      btn.innerHTML = '<span>📤</span> Push naar alle services';
+      return;
+    }
+
+    // Toon resultaten
+    const results = data.results;
+    const okCount  = Object.values(results).filter(r => r.ok).length;
+    const errCount = Object.values(results).filter(r => !r.ok).length;
+
+    summary.innerHTML = `
+      <div class="summary-stat">
+        <div class="summary-num">${data.qso_count}</div>
+        <div class="summary-lbl">QSO's</div>
+      </div>
+      <div class="summary-div"></div>
+      <div class="summary-stat">
+        <div class="summary-num" style="color:var(--ok)">${okCount}</div>
+        <div class="summary-lbl">Gelukt</div>
+      </div>
+      <div class="summary-div"></div>
+      <div class="summary-stat">
+        <div class="summary-num" style="color:var(--err)">${errCount}</div>
+        <div class="summary-lbl">Mislukt</div>
+      </div>
+      <div style="flex:1; font-size:13px; color:var(--fg2)">
+        <strong>${data.filename}</strong>
+      </div>
+    `;
+
+    grid.innerHTML = '';
+    for (const [svcId, result] of Object.entries(results)) {
+      const svc = services.find(s => s.id === svcId) || { name: svcId, icon: '🔌' };
+      const cls = result.ok ? 'ok' : 'err';
+      const icon = result.ok ? '✅' : '❌';
+      grid.innerHTML += `
+        <div class="result-card ${cls}">
+          <div class="result-status-icon">${icon}</div>
+          <div>
+            <div class="result-service">${svc.icon} ${svc.name}</div>
+            <div class="result-msg">${result.message || ''}</div>
+          </div>
+        </div>`;
+    }
+
+    resultsDiv.style.display = 'block';
+    toast(okCount === Object.keys(results).length
+      ? `✅ Alle ${okCount} services gelukt!`
+      : `⚠️ ${okCount} gelukt, ${errCount} mislukt`, okCount === Object.keys(results).length ? 'ok' : 'err');
+
+  } catch(e) {
+    toast('Netwerkfout: ' + e.message, 'err');
+  }
+
+  btn.disabled = false;
+  btn.innerHTML = '<span>📤</span> Opnieuw pushen';
+}
+
+// ── Config ─────────────────────────────────────────────────────────────────
+async function loadConfig() {
+  const container = document.getElementById('configCards');
+  try {
+    const [svcRes, fieldsRes] = await Promise.all([
+      fetch('/api/services').then(r => r.json()),
+      fetch('/api/service-fields').then(r => r.json()),
+    ]);
+    services = svcRes;
+    serviceFields = fieldsRes;
+    renderConfig(svcRes, fieldsRes);
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--err)">Fout bij laden: ${e.message}</div>`;
+  }
+}
+
+function renderConfig(svcs, fields) {
+  const container = document.getElementById('configCards');
+  container.innerHTML = svcs.map(svc => {
+    const fieldDefs = fields[svc.id] || [];
+    const fieldsHtml = fieldDefs.map(f => `
+      <div class="form-group">
+        <label class="form-label" for="${svc.id}_${f.key}">
+          ${f.label}${f.required ? '<span class="form-required">*</span>' : ''}
+        </label>
+        <input
+          class="form-input"
+          id="${svc.id}_${f.key}"
+          type="${f.type || 'text'}"
+          placeholder="${f.placeholder || ''}"
+          value="${escHtml(svc.config[f.key] || '')}"
+          autocomplete="off"
+        >
+        ${f.hint ? `<div class="form-hint">💡 ${f.hint}</div>` : ''}
+      </div>
+    `).join('');
+
+    return `
+    <div class="service-config-card">
+      <div class="service-config-header" onclick="toggleServiceBody('${svc.id}')">
+        <div class="service-header-left">
+          <div class="service-dot" style="background:${svc.color}"></div>
+          <div>
+            <div class="service-config-name">${svc.icon} ${svc.name}</div>
+            <div class="service-config-status">${svc.enabled ? 'Ingeschakeld' : 'Uitgeschakeld'}</div>
+          </div>
+        </div>
+        <label class="toggle" onclick="event.stopPropagation()">
+          <input type="checkbox" id="${svc.id}_enabled" ${svc.enabled ? 'checked' : ''}
+            onchange="updateServiceStatus('${svc.id}')">
+          <div class="toggle-track"></div>
+          <div class="toggle-thumb"></div>
+        </label>
+      </div>
+      <div class="service-config-body hidden" id="body_${svc.id}">
+        ${fieldDefs.length ? fieldsHtml : '<div style="padding-top:14px; color:var(--fg3); font-size:13px">Geen extra configuratie vereist.</div>'}
+        <button class="btn btn-primary save-btn" onclick="saveService('${svc.id}')">
+          💾 Opslaan
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleServiceBody(id) {
+  const body = document.getElementById('body_' + id);
+  body.classList.toggle('hidden');
+}
+
+function updateServiceStatus(svcId) {
+  const svc = services.find(s => s.id === svcId);
+  if (svc) {
+    const statusEl = document.querySelector(`#body_${svcId}`)?.closest('.service-config-card')
+      ?.querySelector('.service-config-status');
+    const enabled = document.getElementById(svcId + '_enabled').checked;
+    if (statusEl) statusEl.textContent = enabled ? 'Ingeschakeld' : 'Uitgeschakeld';
+  }
+}
+
+async function saveService(svcId) {
+  const fields = serviceFields[svcId] || [];
+  const config = {};
+  fields.forEach(f => {
+    const el = document.getElementById(svcId + '_' + f.key);
+    if (el) config[f.key] = el.value;
+  });
+  const enabled = document.getElementById(svcId + '_enabled').checked;
+
+  try {
+    const res = await fetch(`/api/services/${svcId}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ enabled, config }),
+    });
+    if (res.ok) {
+      toast(`✅ ${svcId.toUpperCase()} opgeslagen`);
+      // Wachtwoord velden leegmaken na opslaan
+      fields.filter(f => f.type === 'password').forEach(f => {
+        const el = document.getElementById(svcId + '_' + f.key);
+        if (el) el.placeholder = '••••••• (opgeslagen)';
+      });
+    } else {
+      toast('Opslaan mislukt', 'err');
+    }
+  } catch(e) {
+    toast('Fout: ' + e.message, 'err');
+  }
+}
+
+// ── History ────────────────────────────────────────────────────────────────
+async function loadHistory() {
+  const container = document.getElementById('historyList');
+  try {
+    const history = await fetch('/api/history').then(r => r.json());
+    if (!history.length) {
+      container.innerHTML = '<div class="history-empty">📭 Nog geen uploads. Upload je eerste ADIF bestand!</div>';
+      return;
+    }
+    container.innerHTML = history.map(h => {
+      const results = h.results || {};
+      const badges = Object.entries(results).map(([svcId, r]) => {
+        const svc = services.find(s => s.id === svcId);
+        const name = svc ? svc.name : svcId;
+        return `<span class="badge badge-${r.ok ? 'ok' : 'err'}">${r.ok ? '✅' : '❌'} ${name}</span>`;
+      }).join('');
+      return `
+        <div class="history-item">
+          <div class="history-header">
+            <div>
+              <div class="history-filename">📄 ${escHtml(h.filename)}</div>
+              <div class="history-meta">${h.qso_count} QSO's · ${formatDate(h.uploaded_at)}</div>
+            </div>
+          </div>
+          <div class="history-badges">${badges || '<span style="color:var(--fg3);font-size:12px">Geen services</span>'}</div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = `<div style="color:var(--err)">Fout bij laden: ${e.message}</div>`;
+  }
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function formatDate(s) {
+  try { return new Date(s + (s.includes('Z') ? '' : 'Z')).toLocaleString('nl-NL') } catch(e) { return s }
+}
+
+// ── Init ───────────────────────────────────────────────────────────────────
+(async () => {
+  try {
+    const v = await fetch('/api/version').then(r => r.json());
+    document.getElementById('versionBadge').textContent = 'v' + v.version;
+    const svcRes = await fetch('/api/services').then(r => r.json());
+    services = svcRes;
+  } catch(e) {}
+})();
+</script>
